@@ -1,0 +1,128 @@
+services:
+
+  reverse:
+    image: "jwilder/nginx-proxy"
+    container_name: "station-reverse"
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+
+  train:
+    build:
+      context: ./train
+      dockerfile: Dockerfile.dev
+    image: "station-train"
+    hostname: "train"
+    domainname: "docker-station.io"
+    container_name: "station-train"
+    tty: true
+    stdin_open: true
+    networks:
+      default:
+        aliases:
+          - "train.docker-station.io"
+    volumes:
+      - ./train:/usr/src/app
+      - station-train-bundler-dir:/usr/local/bundle
+    depends_on:
+      - "db"
+    environment:
+      VIRTUAL_HOST: "train.docker-station.io"
+      RAILS_ENV: "development"
+      NODE_ENV: "development"
+      HOST: "train.docker-station.io"
+      PORT: "3000"
+      CAR_HOST: "car:4567"
+      PGHOST: "db"
+      PGPORT: "5432"
+      PGUSER: "postgres"
+      PGPASSWORD: "postgres"
+      REDIS_URL: "redis://redis:6379/1"
+
+  sidekiq:
+    image: "station-train"
+    hostname: "sidekiq"
+    domainname: "docker-station.io"
+    container_name: "station-sidekiq"
+    networks:
+      default:
+        aliases:
+          - "sidekiq.docker-station.io"
+    volumes:
+      - ./train:/usr/src/app
+      - station-train-bundler-dir:/usr/local/bundle
+    depends_on:
+      - "train"
+      - "redis"
+    command: "bundle exec sidekiq"
+    entrypoint: ''
+    environment:
+      VIRTUAL_HOST: "sidekiq.docker-station.io"
+      RAILS_ENV: "development"
+      NODE_ENV: "development"
+      HOST: "train.docker-station.io"
+      PORT: "3000"
+      CAR_HOST: "car:4567"
+      PGHOST: "db"
+      PGPORT: "5432"
+      PGUSER: "postgres"
+      PGPASSWORD: "postgres"
+      REDIS_URL: "redis://redis:6379/1"
+
+  car:
+    build:
+      context: ./car
+      dockerfile: Dockerfile.dev
+    image: "station-car"
+    hostname: "car"
+    domainname: "docker-station.io"
+    container_name: "station-car"
+    tty: true
+    stdin_open: true
+    networks:
+      default:
+        aliases:
+          - "car.docker-station.io"
+    volumes:
+      - ./car:/usr/src/app
+      - station-car-bundler-dir:/usr/local/bundle
+    environment:
+      VIRTUAL_HOST: "car.docker-station.io"
+      CURRENT_PLATFORM: "Docker"
+
+  db:
+    image: "postgres:14.7-alpine"
+    hostname: "db"
+    domainname: "docker-station.io"
+    container_name: "station-db"
+    restart: "always"
+    networks:
+      default:
+        aliases:
+          - "db.docker-station.io"
+    volumes:
+      - station-db-data:/var/lib/postgresql/data
+      - station-db-logs:/var/log/postgresql
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+
+  redis:
+    image: "redis:alpine"
+    hostname: "redis"
+    domainname: "docker-station.io"
+    container_name: "station-redis"
+    restart: "always"
+    networks:
+      default:
+        aliases:
+          - "redis.docker-station.io"
+
+volumes:
+  station-db-data:
+  station-db-logs:
+  station-train-bundler-dir:
+  station-car-bundler-dir:
+
