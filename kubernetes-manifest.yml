@@ -1,0 +1,454 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: development
+  labels:
+    name: development
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: car-deployment
+  namespace: development
+  labels:
+    app: car
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: car
+  template:
+    metadata:
+      labels:
+        app: car
+    spec:
+      containers:
+      - name: station-car
+        image: station-car:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 4567
+        env:
+          - name: CURRENT_PLATFORM
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: CAR.CURRENT_PLATFORM
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: car-service
+  namespace: development
+spec:
+  type: NodePort
+  selector:
+    app: car
+  ports:
+    - protocol: TCP
+      port: 4567
+      targetPort: 4567
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: train-deployment
+  namespace: development
+  labels:
+    app: train
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: train
+  template:
+    metadata:
+      labels:
+        app: train
+    spec:
+      containers:
+      - name: station-train
+        image: station-train:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3000
+        env:
+          - name: RAILS_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.RAILS_ENV
+          - name: NODE_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.NODE_ENV
+          - name: HOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.HOST
+          - name: PORT
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PORT
+          - name: CAR_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.CAR_HOST
+          - name: PGHOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGHOST
+          - name: PGPORT
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGPORT
+          - name: PGUSER
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGUSER
+          - name: PGPASSWORD
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGPASSWORD
+          - name: REDIS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.REDIS_URL
+      initContainers:
+      - name: train-migrations
+        image: station-train:latest
+        imagePullPolicy: Never
+        command:
+          - /bin/bash
+          - -c
+          - 'bundle exec rails db:prepare'
+        env:
+          - name: RAILS_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.RAILS_ENV
+          - name: NODE_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.NODE_ENV
+          - name: HOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.HOST
+          - name: PORT
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PORT
+          - name: CAR_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.CAR_HOST
+          - name: PGHOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGHOST
+          - name: PGPORT
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGPORT
+          - name: PGUSER
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGUSER
+          - name: PGPASSWORD
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGPASSWORD
+          - name: REDIS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.REDIS_URL
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sidekiq-deployment
+  namespace: development
+  labels:
+    app: sidekiq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sidekiq
+  template:
+    metadata:
+      labels:
+        app: sidekiq
+    spec:
+      containers:
+      - name: station-train
+        image: station-train:latest
+        imagePullPolicy: Never
+        command:
+          - /bin/bash
+          - -c
+          - 'bundle exec sidekiq'
+        env:
+          - name: RAILS_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.RAILS_ENV
+          - name: NODE_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.NODE_ENV
+          - name: HOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.HOST
+          - name: PORT
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PORT
+          - name: CAR_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.CAR_HOST
+          - name: PGHOST
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGHOST
+          - name: PGPORT
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGPORT
+          - name: PGUSER
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGUSER
+          - name: PGPASSWORD
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.PGPASSWORD
+          - name: REDIS_URL
+            valueFrom:
+              configMapKeyRef:
+                name: station-config
+                key: TRAIN.REDIS_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: train-service
+  namespace: development
+spec:
+  type: NodePort
+  selector:
+    app: train
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: station-config
+  namespace: development
+data:
+  CAR.CURRENT_PLATFORM: Kube
+  TRAIN.RAILS_ENV: "development"
+  TRAIN.NODE_ENV: "development"
+  TRAIN.HOST: "train.k8s-station.io"
+  TRAIN.PORT: "3000"
+  TRAIN.CAR_HOST: "car-service:4567"
+  TRAIN.PGHOST: "postgres-service"
+  TRAIN.PGPORT: "5432"
+  TRAIN.PGUSER: "postgres"
+  TRAIN.PGPASSWORD: "password"
+  TRAIN.REDIS_URL: "redis://redis-service:6379/"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: station-ingress
+  namespace: development
+spec:
+  rules:
+  - host: car.k8s-station.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: car-service
+            port:
+              number: 4567
+  - host: train.k8s-station.io
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: train-service
+            port:
+              number: 3000
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-data
+  namespace: development
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 2Gi
+  hostPath:
+    path: /data/postgres
+  storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-claim
+  namespace: development
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  volumeName: postgres-data
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secrets
+  namespace: development
+type: Opaque
+data:
+  POSTGRES_USER: cG9zdGdyZXM=
+  POSTGRES_PASSWORD: cGFzc3dvcmQ=
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: development
+  labels:
+    app: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14.7-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_USER
+                  name: postgres-secrets
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: POSTGRES_PASSWORD
+                  name: postgres-secrets
+          ports:
+            - containerPort: 5432
+              name: postgres
+              protocol: TCP
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data-claim
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: development
+spec:
+  type: NodePort
+  selector:
+    app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: development
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:alpine
+          ports:
+            - containerPort: 6379
+              name: redis
+              protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: development
+spec:
+  type: NodePort
+  selector:
+    app: redis
+  ports:
+    - protocol: TCP
+      port: 6379
+      targetPort: 6379
